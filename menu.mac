@@ -1,0 +1,295 @@
+/*
+  ( )            2017-07-14 追加したタスク
+  (B)            2017-07-14 優先度を記入した
+  (B)            2017-07-14 追加したタスク @context +project
+  (B)            2017-07-14 締切付き due:2017-07-14
+x ( ) 1999-01-01 2017-07-14 --------------------------------
+x ( ) 2017-07-14 2017-07-14 完了。当日中に
+x ( ) 2017-07-15 2017-07-14 完了。翌日以降に
+x (A) 2017-07-14 2017-07-14 完了。優先度高め
+x (G) 2017-07-14 2017-07-14 完了。優先度低め
+x ( ) 2017-07-14 2017-07-14 完了。当日中に
+x ( ) 2017-07-15 2017-07-14 完了。翌日以降に
+*/
+
+// 各動作に対応する定数定義
+// @todo execmacroとgetargのコンボで動作単位でキー割り当てしたい場合に
+//       #I_hoge の値がわからないとダメなので、#cnt 使わずに数字決め打ちすべき?
+// ------------------------
+
+#true  = 1;
+#false = 0;
+
+LabelTop:
+
+#cnt=0;
+#I_ADD=#cnt; #cnt=#cnt+1;
+#I_COPY=#cnt; #cnt=#cnt+1;
+#I_EDIT=#cnt; #cnt=#cnt+1;
+#I_DONE=#cnt; #cnt=#cnt+1;
+#I_FIND=#cnt; #cnt=#cnt+1;
+#I_SORT=#cnt; #cnt=#cnt+1;
+#I_PRIO_DEC=#cnt; #cnt=#cnt+1;
+#I_PRIO_INC=#cnt; #cnt=#cnt+1;
+#I_EDIT_ME=#cnt;
+
+// メニュー項目をつくって表示する
+// ------------------------------
+
+MenuDefinition:
+
+// [[[ menu item start
+#idx=#I_ADD; $items[#idx]      = "Add  Task(&A)";
+#idx=#I_COPY; $items[#idx]     = "Copy Task(&C)";
+#idx=#I_EDIT; $items[#idx]     = "Edit Task(&E)";
+#idx=#I_DONE; $items[#idx]     = "Done Task(&D)";
+#idx=#I_FIND; $items[#idx]     = "Find Task(&F)";
+#idx=#I_SORT; $items[#idx]     = "Sort(&S)";
+#idx=#I_PRIO_DEC; $items[#idx] = "Priority Up(&1)";
+#idx=#I_PRIO_INC; $items[#idx] = "Priority Down(&2)";
+#idx=#I_EDIT_ME; $items[#idx]  = "Programming this macro(&P)";
+#idx=#idx+1; #maxidx = #idx;
+// menu item end ]]]
+
+menuarray $items, #maxidx;
+
+// 選択したメニュー項目の解釈と実行
+// -------------------------------
+
+Interpret:
+
+if(result==0){
+	// Cansel
+	endmacro;
+}
+#si = result-1;
+$sn = $items[#si];
+
+// 01234567890123456789012345678
+// x ( ) 2017-07-15 2017-07-14 タスク名タスク名
+#POS_MARK=0;
+#POS_PRIO=2;
+#POS_COMP_DATE=6;
+#POS_CREATION_DATE=17;
+#POS_DESCRIPTION=28;
+#LEN_DATE=strlen("YYYY-MM-DD");
+$DONE_MARK  = "x";
+$EMPTY_MARK = " ";
+$EMPTY_PRIO = "( )";
+$EMPTY_DATE = "          ";
+
+Actions:
+
+if(#si==#I_EDIT_ME){
+	$path = hidemarudir+"\\hidemaru.exe " + currentmacrofilename;
+	run $path;
+	endmacro;
+}
+
+if(#si==#I_ADD){
+	if(linelen==0){
+		// 空行ならその位置に挿入する.
+	}else{
+		golinetop;
+		insertline;
+	}
+	call sub_currentdate;
+	$curdate = $$return;
+	insert $EMPTY_MARK + " " + $EMPTY_PRIO + " " + $EMPTY_DATE + " " + $curdate + " ";
+	endmacro;
+}
+
+if(#si==#I_COPY){
+	call if_blank_then_end;
+
+	call sub_currentline;
+	$curline = $$return;
+
+	golineend;
+	insertreturn;
+	// 自動インデントで行頭に位置しないケースがあるので明示的に移る.
+	// また, インデントスペースが残っているのでそれも消す.
+	golinetop; 
+	deleteafter;
+
+	insert $curline;
+	golinetop;
+
+	// done task を複製した場合は done のままなので消しておく.
+	// 複製したタスクは未完タスクとして使うはず.
+	call is_done_task;
+	if(##return==#true){
+		call done_cancel;
+	}
+
+	// 複製後はタスク内容をいじるのが自然だと思う.
+	golineend;
+
+	endmacro;
+}
+
+if(#si==#I_EDIT){
+	call if_blank_then_end;
+	golinetop;
+	right #POS_DESCRIPTION;
+	endmacro;
+}
+
+if(#si==#I_DONE){
+	call if_blank_then_end;
+
+	// 既に done 済ならキャンセルする.
+	call is_done_task;
+	if(##return==#true){
+		call done_cancel;
+		endmacro;
+	}
+
+	golinetop;
+	delete;
+	insert $DONE_MARK;
+
+	golinetop;
+	right #POS_COMP_DATE;
+	call delete_datestring;
+	
+	call sub_currentdate;
+	$curdate = $$return;
+	insert $curdate;
+
+	endmacro;
+}
+
+if(#si==#I_FIND){
+	$query = input("検索したいワードを入力してください.");
+	if(result==false){
+		endmacro;
+	}
+
+	// UI 秀丸の grep 機能に従う.
+	// ただし前回の検索設定が上書きしてしまうので後で復旧する.
+	#oldsettings = searchoption;
+	$oldgrepee   = grepfilebuffer;
+	$oldquery = ""; // 検索後はデフォでも毎回クリアされてるんで空文字でいいかと.
+	localgrep $query;
+	setsearch $oldquery, #oldsettings;
+	setgrepfile $oldgrepee;
+
+	endmacro;
+}
+
+if(#si==#I_SORT){
+	$opening_file_fullpath  = filename;
+	$opening_file_filename  = basename;
+	$opening_file_directory = directory;
+
+	// 関係無いファイル上でうっかり実行しちゃった時に
+	// 悲惨なことになりかねないのでガードをかけておく.
+	if($opening_file_filename!="todo.txt"){
+		endmacro;
+	}
+
+	// 以後のソート処理は todo.txt を読み込んでから処理するため
+	// 上書き保存しておかないと現在の内容でソートされない.
+	save;
+
+	$program = "python " + currentmacrodirectory + "\\helper.py";
+	$args = "-i " + $opening_file_fullpath + " --sort";
+	run $program + " " + $args;
+
+	endmacro;
+}
+
+if(#si==#I_PRIO_INC){
+	call if_blank_then_end;
+
+	call sub_currentline;
+	$curline = $$return;
+
+	$curprio = midstr($curline, #POS_PRIO+1, 1);
+	$retprio = char(ascii($curprio)+1);
+	if($curprio=="Z");{
+		$retprio = " ";
+	}else if($curprio==" "){
+		$retprio = "A";
+	}
+
+	golinetop;
+	right #POS_PRIO+1;
+	delete;
+	insert $retprio;
+
+	// 繰り返し適用を見越してメニュー再表示.
+	goto LabelTop;
+}
+
+if(#si==#I_PRIO_DEC){
+	call if_blank_then_end;
+
+	call sub_currentline;
+	$curline = $$return;
+
+	$curprio = midstr($curline, #POS_PRIO+1, 1);
+	$retprio = char(ascii($curprio)-1);
+	if($curprio==" ");{
+		$retprio = "Z";
+	}else if($curprio=="A"){
+		$retprio = " ";
+	}
+
+	golinetop;
+	right #POS_PRIO+1;
+	delete;
+	insert $retprio;
+
+	// 繰り返し適用を見越してメニュー再表示.
+	goto LabelTop;
+}
+
+endmacro;
+
+// サブルーチンたち
+// ----------------
+
+if_blank_then_end:
+	if(linelen==0){
+		endmacro;
+	}
+	return 0;
+
+done_cancel:
+	call if_blank_then_end;
+
+	golinetop;
+	delete;
+	insert " ";
+
+	golinetop;
+	right #POS_COMP_DATE;
+	call delete_datestring;
+	insert $EMPTY_DATE;
+
+	return 0;
+
+delete_datestring:
+	#i = 0;
+	while(#i < #LEN_DATE){
+		delete;
+		#i = #i + 1;
+	}
+	return 0;
+
+is_done_task:
+	call sub_currentline;
+	$curline = $$return;
+	$mark = midstr($curline, 0, 1);
+	if($mark==$DONE_MARK){
+		return #true;
+	}
+	return #false;
+
+sub_currentdate:
+	return year + "-" + month + "-" + day;
+
+sub_currentline:
+	return gettext(0, y, linelen ,y, 0);
