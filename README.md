@@ -7,10 +7,12 @@
 todo.txt については拙筆ですが [タスク管理メソッド todo.txt が面白そう - Qiita](http://qiita.com/sta/items/0f72c9c956cf05df8141) をどうぞ。
 
 ## 特徴
+
 - 秀丸エディタマクロのみでほぼ完結しています（余計なツールは使いません）
 - メニュー項目から選択するだけで各種操作を行えます（手で打つよりも何倍も楽です）
 
 ## サポートしている操作
+
 以下の操作をサポートしています。
 
 - タスクの追加 …… 新しくタスク(Todo)を追加します。
@@ -23,6 +25,7 @@ todo.txt については拙筆ですが [タスク管理メソッド todo.txt �
 - 優先度を下げる …… 同上、A → B → C という方向で変更します。
 
 ## インストール
+
 - (1) todo.txt-hidemaru をダウンロードします
   - Git に慣れてる方なら `git clone https://github.com/stakiran/todo.txt-hidemaru`
   - あるいは [ZIP でダウンロード](https://github.com/stakiran/todo.txt-hidemaru/archive/master.zip) もできます
@@ -31,6 +34,7 @@ todo.txt については拙筆ですが [タスク管理メソッド todo.txt �
 - (4) todo.txt を準備します。空ファイルでも構いません。 [サンプルのtodo.txt](todo.txt) を使っても良いです
 
 ## 使い方
+
 todo.txt を秀丸エディタで開いた後、menu.mac を呼び出します。
 
 するとメニューが表示されるので、実行したい操作を選びます。
@@ -42,7 +46,12 @@ todo.txt を秀丸エディタで開いた後、menu.mac を呼び出します�
 なお、何も実行したくない場合は、Esc キーを押すかメニュー外をクリックしてキャンセルしてください。
 
 ## (上級者向け)本マクロを改造する
+
 秀丸エディタマクロのわかる方なら、[menu.mac](menu.mac) の中身を見て色々とカスタマイズできるかもしれません。
+
+## Contribution
+
+ご意見、ご要望、バグ報告などありましたら [Issues](https://github.com/stakiran/todo.txt-hidemaru/issues) よりお知らせください（要GitHubアカウント）。
 
 ## ライセンス
 
